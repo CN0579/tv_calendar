@@ -14,7 +14,6 @@ import logging
 import yaml
 import re
 
-import os
 
 server = mbot_api
 api_url = "/3/tv/%(tv_id)s/season/%(season_number)s"
@@ -29,12 +28,6 @@ def after_setup(plugin_meta: PluginMeta, config: Dict[str, Any]):
     global message_to_uid
     message_to_uid = config.get('uid')
 
-    if os.path.exists('/app/frontend/static/tv_calendar.html'):
-        os.remove('/app/frontend/static/tv_calendar.html')
-    if os.path.exists('/app/frontend/static/episode.html'):
-        os.remove('/app/frontend/static/episode.html')
-    if os.path.exists('/app/frontend/static/banner.jpg'):
-        os.remove('/app/frontend/static/banner.jpg')
     shutil.copy('/data/plugins/tv_calendar/frontend/tv_calendar.html', '/app/frontend/static')
     shutil.copy('/data/plugins/tv_calendar/frontend/episode.html', '/app/frontend/static')
     shutil.copy('/data/plugins/tv_calendar/frontend/banner.jpg', '/app/frontend/static')
@@ -48,6 +41,8 @@ def config_changed(config: Dict[str, Any]):
 
 @plugin.task('save_json', '剧集更新', cron_expression='10 0 * * *')
 def task():
+    # 怕并发太高，衣总服务器撑不住
+    time.sleep(random.randint(1, 3600))
     save_json()
 
 
@@ -116,11 +111,7 @@ def save_json():
 
 
 def get_after_day(day, n):
-    # 今天的时间
-
-    # 计算偏移量
     offset = datetime.timedelta(days=n)
-    # 获取想要的日期的时间
     after_day = day + offset
     return after_day
 
@@ -130,7 +121,9 @@ def get_server_url():
     with open(yml_file, encoding='utf-8') as f:
         yml_data = yaml.load(f, Loader=yaml.FullLoader)
     mr_url = yml_data['web']['server_url']
-    if (re.match('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', mr_url) != None):
+    if mr_url is None or mr_url == '':
+        return False
+    if (re.match('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', mr_url) is not None):
         return mr_url
     return False
 
@@ -184,6 +177,5 @@ def push_message():
             'a': message,
             'link_url': link_url,
             'pic_url': img_api
-
         })
     _LOGGER.info('完成推送')

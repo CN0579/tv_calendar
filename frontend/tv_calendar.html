@@ -60,8 +60,8 @@
                                 :src="list[0].season_poster!=null?imageBaseUrl+list[0].season_poster:imageBaseUrl+list[0].tv_poster"
                         ></van-image>
                         <h6 style="margin: 5px auto;" class="text-ellipsis">{{list[0].tv_name?list[0].tv_name:tv_original_name}}第{{list[0].season_number}}季</h6>
-                        <p v-if="list.length>1" style="margin: 2px auto;">第{{list[0].episode_number}}-{{list[list.length-1].episode_number}}集</p>
-                        <p v-else style="margin: 2px auto;">第{{list[0].episode_number}}集</p>
+                        <h6 v-if="list.length>1" style="margin: 2px auto;">第{{list[0].episode_number}}-{{list[list.length-1].episode_number}}集</h6>
+                        <h6 v-else style="margin: 2px auto;">第{{list[0].episode_number}}集</h6>
 
 
                     </van-grid-item>

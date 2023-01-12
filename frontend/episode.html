@@ -117,7 +117,6 @@
                 seasonNumber: '',
                 status: false,
                 mediaServerEnable: false,
-                // host: 'https://mr.05730116.xyz:88'
                 host: ''
             }
         },
@@ -195,7 +194,6 @@
             },
             getAccessToken() {
                 return localStorage.getItem("accessToken")
-                // return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY3MTA2NTcxNiwianRpIjoiM2FkYjlmZjgtOWJiZi00MDMyLWFlMzUtZWRkM2UwZjYxMjBlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjcxMDY1NzE2LCJleHAiOjE3MDI2MDE3MTZ9.PISSjc_uXwQD_j5PJVDfuHxR9O40ic3liijvRQMqnQA'
             },
             async getMediaServerEnable() {
                 let res = await this.get(this.host + '/api/plugins/tv_calendar/media_server_enable')

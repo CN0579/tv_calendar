@@ -1,21 +1,30 @@
 import datetime
+import typing
 import random
 import time
-import typing
 from typing import Dict, Any
 
+from moviebotapi.common import MenuItem
 from moviebotapi.core.models import MediaType
 from moviebotapi.subscribe import SubStatus, Subscribe
 
-import json
 import shutil
 from mbot.openapi import mbot_api
 from mbot.core.plugins import *
 
 import logging
-import yaml
-import re
+from flask import Blueprint, request
 
+from mbot.common.flaskutils import api_result
+from mbot.core.plugins import plugin
+from mbot.register.controller_register import login_required
+
+bp = Blueprint('plugin_tv_calendar', __name__)
+"""
+把flask blueprint注册到容器
+这个URL访问完整的前缀是 /api/plugins/你设置的前缀
+"""
+plugin.register_blueprint('tv_calendar', bp)
 
 server = mbot_api
 api_url = "/3/tv/%(tv_id)s/season/%(season_number)s"
@@ -23,51 +32,166 @@ tv_api_url = "/3/tv/%(tv_id)s"
 param = {'language': 'zh-CN'}
 _LOGGER = logging.getLogger(__name__)
 message_to_uid: typing.List[int] = []
+media_server_enable = False
 
 
 @plugin.after_setup
 def after_setup(plugin_meta: PluginMeta, config: Dict[str, Any]):
     global message_to_uid
+    global media_server_enable
     message_to_uid = config.get('uid')
+    media_server_enable = config.get('media_server_enable')
 
     shutil.copy('/data/plugins/tv_calendar/frontend/tv_calendar.html', '/app/frontend/static')
     shutil.copy('/data/plugins/tv_calendar/frontend/episode.html', '/app/frontend/static')
     shutil.copy('/data/plugins/tv_calendar/frontend/banner.jpg', '/app/frontend/static')
+    """授权并添加菜单"""
+    href = '/common/view#/static/tv_calendar.html'
+    # 授权管理员和普通用户可访问
+    server.auth.add_permission([1, 2], href)
+    server.auth.add_permission([1, 2], '/api/plugins/tv_calendar/list')
+    server.auth.add_permission([1, 2], '/api/plugins/tv_calendar/one')
+    server.auth.add_permission([1, 2], '/api/plugins/tv_calendar/media_server_enable')
+    # 获取菜单，把追剧日历添加到"我的"菜单分组
+    menus = server.common.list_menus()
+    for item in menus:
+        if item.title == '我的':
+            test = MenuItem()
+            test.title = '追剧日历'
+            test.href = href
+            test.icon = 'Today'
+            item.pages.append(test)
+            break
+    server.common.save_menus(menus)
+    episode_arr = get_calendar_cache()
+    if not episode_arr:
+        episode_arr = []
+        save_calendar_cache(episode_arr)
 
 
 @plugin.config_changed
 def config_changed(config: Dict[str, Any]):
     global message_to_uid
+    global media_server_enable
     message_to_uid = config.get('uid')
+    media_server_enable = config.get('media_server_enable')
 
 
-@plugin.task('save_json', '剧集更新', cron_expression='10 0 * * *')
+@plugin.on_event(
+    bind_event=['SubMedia', ' DeleteSubMedia'], order=1)
+def on_subscribe_new_media(ctx: PluginContext, event_type: str, data: Dict):
+    tmdb_id = data['tmdb_id']
+    season_index = data['season_index']
+    media_type = data['type']
+    if media_type == 'TV':
+        _LOGGER.info('订阅了新的剧集,开始更新日历数据')
+        if tmdb_id and season_index:
+            tv = get_tv_info(tmdb_id)
+            season = get_tmdb_info(tmdb_id, season_index)
+            if tv and season:
+                episode_arr = get_calendar_cache()
+                tv_poster = tv['poster_path']
+                seasons = tv['seasons']
+                tv_name = tv['name']
+                tv_original_name = tv['original_name']
+                backdrop_path = tv['backdrop_path']
+                season_poster = find_season_poster(seasons, season_index)
+                episodes = season['episodes']
+                for episode in episodes:
+                    episode['tv_name'] = tv_name
+                    episode['tv_original_name'] = tv_original_name
+                    episode['tv_poster'] = tv_poster
+                    episode['season_poster'] = season_poster
+                    episode['backdrop_path'] = backdrop_path
+                    episode_arr.append(episode)
+                save_calendar_cache(episode_arr)
+            else:
+                _LOGGER.info('没有查询到tmdb数据')
+        _LOGGER.info('更新日历数据完成')
+
+
+@plugin.task('tv_calendar_save_json', '剧集更新', cron_expression='10 0 * * *')
 def task():
     # 怕并发太高，衣总服务器撑不住
     time.sleep(random.randint(1, 3600))
     save_json()
 
 
+@bp.route('/list', methods=["GET"])
+@login_required()
+def get_subscribe_tv_list():
+    json_list = get_calendar_cache()
+    index_date = get_after_day(datetime.date.today(), 0)
+    end_date = get_after_day(index_date, 6)
+    index_date_timestamp = int(index_date.strftime('%Y%m%d'))
+    end_date_timestamp = int(end_date.strftime('%Y%m%d'))
+    filter_list = list(
+        filter(lambda x: index_date_timestamp <= get_date_timestamp(x['air_date']) <= end_date_timestamp, json_list)
+    )
+    episode_list = {}
+    result = []
+    for item in filter_list:
+        tmdb_id = item['show_id']
+        season_number = item['season_number']
+        season = list(
+            filter(lambda x: x['show_id'] == int(tmdb_id) and x['season_number'] == int(season_number), json_list))
+        if media_server_enable:
+            item['episode_total'] = len(season)
+            key = 'key_' + str(tmdb_id) + '_' + str(season_number)
+            if key not in episode_list:
+                episode_arr = get_episode_from_media_server(tmdb_id, season_number)
+                item['episode_arr'] = episode_arr
+                _LOGGER.info(episode_arr)
+                episode_list[key] = episode_arr
+            else:
+                item['episode_arr'] = episode_list[key]
+        else:
+            item['episode_arr'] = []
+        result.append(item)
+    return api_result(code=0, message='ok', data=result)
+
+
+@bp.route('/one', methods=["GET"])
+@login_required()
+def get_tv_air_date():
+    data = request.args
+    tmdb_id = data.get('tmdb_id')
+    season_number = data.get('season_number')
+    json_list = get_calendar_cache()
+    filter_list = list(
+        filter(lambda x: x['show_id'] == int(tmdb_id) and x['season_number'] == int(season_number), json_list))
+    if media_server_enable:
+        episode_arr = get_episode_from_media_server(tmdb_id, season_number)
+        filter_list[0]['episode_arr'] = episode_arr
+    else:
+        filter_list[0]['episode_arr'] = []
+    return api_result(code=0, message='ok', data=filter_list)
+
+
+@bp.route('/media_server_enable', methods=["GET"])
+@login_required()
+def get_media_server_enable():
+    return api_result(code=0, message='ok', data=media_server_enable)
+
+
+def get_date_timestamp(air_date):
+    if air_date == '' or air_date is None:
+        return 0
+    return int(air_date.replace('-', ''))
+
+
 def get_tmdb_info(tv_id, season_number):
-    for i in range(5):
-        try:
-            res = server.tmdb.request_api(api_url % {'tv_id': tv_id, 'season_number': season_number}, param)
-        except Exception as e:
-            _LOGGER.error(e)
-            continue
-        return res
-    return False
+    return server.tmdb.request_api(api_url % {'tv_id': tv_id, 'season_number': season_number}, param)
+
+
+def get_after_day(day, n):
+    offset = datetime.timedelta(days=n)
+    after_day = day + offset
+    return after_day
 
 
 def get_tv_info(tv_id):
-    for i in range(5):
-        try:
-            res = server.tmdb.request_api(tv_api_url % {'tv_id': tv_id}, param)
-        except Exception as e:
-            _LOGGER.error(e)
-            continue
-        return res
-    return False
+    return server.tmdb.request_api(tv_api_url % {'tv_id': tv_id}, param)
 
 
 def find_season_poster(seasons, season_number):
@@ -77,25 +201,32 @@ def find_season_poster(seasons, season_number):
     return ''
 
 
-def save_json():
+def get_episode_from_media_server(tmdb_id, season_number):
+    episode_list = server.media_server.list_episodes_from_tmdb(tmdb_id, season_number)
+    episode_number_arr = [int(x.index) for x in episode_list]
+    return episode_number_arr
+
+
+def save_json_no_push():
     _LOGGER.info('开始执行剧集数据更新')
     list_ = server.subscribe.list(MediaType.TV, SubStatus.Subscribing)
     custom_list = server.subscribe.list_custom_sub()
-    custom_list_filter = list(filter(lambda x: x.media_type == MediaType.TV and x.tmdb_id is not None, custom_list))
+    custom_list_filter = list(filter(lambda x: x.media_type == MediaType.TV and x.tmdb_id and x.enable, custom_list))
     for item in custom_list_filter:
-        list_.append(Subscribe({'tmdb_id': item.tmdb_id, 'season_index': item.season_number}, 'SubscribeApi'))
+        list_.append(Subscribe({'tmdb_id': item.tmdb_id, 'season_index': item.season_number}, mbot_api.subscribe))
     episode_arr = []
     for row in list_:
         tv = get_tv_info(row.tmdb_id)
-        if tv is False:
+        if not tv:
             continue
         tv_poster = tv['poster_path']
         seasons = tv['seasons']
         tv_name = tv['name']
         tv_original_name = tv['original_name']
+        backdrop_path = tv['backdrop_path']
         season_poster = find_season_poster(seasons, row.season_number)
         season = get_tmdb_info(row.tmdb_id, row.season_number)
-        if season is False:
+        if not season:
             continue
         episodes = season['episodes']
         for episode in episodes:
@@ -103,37 +234,30 @@ def save_json():
             episode['tv_original_name'] = tv_original_name
             episode['tv_poster'] = tv_poster
             episode['season_poster'] = season_poster
+            episode['backdrop_path'] = backdrop_path
             episode_arr.append(episode)
 
-    with open('/app/frontend/static/original.json', 'w', encoding='utf-8') as fp:
-        json.dump(episode_arr, fp, ensure_ascii=False)
-
+    save_calendar_cache(episode_arr)
     _LOGGER.info('剧集数据更新结束')
+
+
+def save_json():
+    save_json_no_push()
     push_message()
 
 
-def get_after_day(day, n):
-    offset = datetime.timedelta(days=n)
-    after_day = day + offset
-    return after_day
+def save_calendar_cache(json_data):
+    server.common.set_cache('calendar', 'list', json_data)
 
 
-def get_server_url():
-    yml_file = "/data/conf/base_config.yml"
-    with open(yml_file, encoding='utf-8') as f:
-        yml_data = yaml.load(f, Loader=yaml.FullLoader)
-    mr_url = yml_data['web']['server_url']
-    if mr_url is None or mr_url == '':
-        return False
-    if (re.match('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', mr_url) is not None):
-        return mr_url
-    return False
+def get_calendar_cache():
+    json_list = server.common.get_cache('calendar', 'list')
+    return json_list
 
 
 def push_message():
     _LOGGER.info('推送今日更新')
-    with open('/app/frontend/static/original.json', encoding='utf-8') as f:
-        episode_arr = json.load(f)
+    episode_arr = get_calendar_cache()
     episode_filter = list(
         filter(lambda x: x['air_date'] == datetime.date.today().strftime('%Y-%m-%d'), episode_arr))
     name_dict = {}
@@ -142,7 +266,7 @@ def push_message():
             name_dict[item['tv_name']] = [item]
         else:
             name_dict[item['tv_name']].append(item)
-    img_api = 'https://cdn-us.imgs.moe/2023/01/06/63b7930dc9331.jpg'
+    img_api = 'https://p.xmoviebot.com/plugins/tv_calendar_logo.jpg'
     count = 0
     if len(episode_arr) == 0:
         message = "今日没有剧集更新"
@@ -156,15 +280,13 @@ def push_message():
                 episode_number_arr.append(str(episode['episode_number']))
             episode_numbers = ','.join(episode_number_arr)
             message_arr.append(
-                tv_name + 'S' + str(episodes[0]['season_number']) + 'E' + episode_numbers)
+                tv_name + ' 季' + str(episodes[0]['season_number']) + '·集' + episode_numbers)
         message = "\n".join(message_arr)
-
-    mr_url = get_server_url()
-    link_url = ''
-    if (mr_url != False):
-        if (mr_url[-1] != '/'):
-            mr_url += '/'
-        link_url = mr_url + 'static/tv_calendar.html'
+    server_url = mbot_api.config.web.server_url
+    if server_url:
+        link_url = f"{server_url.rstrip('/')}/static/tv_calendar.html"
+    else:
+        link_url = None
     if message_to_uid:
         for _ in message_to_uid:
             server.notify.send_message_by_tmpl('{{title}}', '{{a}}', {

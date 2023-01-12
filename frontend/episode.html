@@ -2,168 +2,188 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>更新计划</title>
-    <link
-            rel="stylesheet"
-            href="https://fastly.jsdelivr.net/npm/vant@4/lib/index.css"
-    />
-    <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover"
-    />
+    <title>Title</title>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+          integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
     <style>
-        .van-theme-dark body {
-            color: white;
-            background-color: black;
-        }
-
         [v-cloak] {
             display: none;
         }
 
-        :root {
+        .text-ellipsis--1 {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            -webkit-line-clamp: 1;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
         }
 
-        .van-card__thumb {
-            width: 160px;
-            height: auto;
-        }
-        .text-ellipsis {
+        .text-ellipsis--3 {
             overflow: hidden;
             text-overflow: ellipsis;
             -webkit-line-clamp: 3;
             display: -webkit-box;
             -webkit-box-orient: vertical;
         }
+
+        .text-ellipsis--4 {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            -webkit-line-clamp: 4;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+        }
+
+        html {
+            -webkit-font-smoothing: antialiased;
+            box-sizing: border-box;
+            text-size-adjust: 100%;
+        }
+
+        body {
+            font-size: 13px;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            font-weight: 400;
+            line-height: 1.4;
+            background: inherit;
+            color: white;
+        }
     </style>
 </head>
 <body>
 <div id="app" v-cloak>
-    <van-config-provider theme="dark">
-        <template v-if="status==false">
-            <van-empty   image="https://fastly.jsdelivr.net/npm/@vant/assets/custom-empty-image.png"  image-size="120" description="怎么肥事!!怎么肥事!!" />
-        </template>
-        <template v-else>
-            <template v-for="(item,index) in date_dict" :key="index">
-                <van-card :title="'第'+item.episode_number+'集 '+getTitle(item.name)" :tag="item.vote_average.toString()">
-                    <template #thumb>
-                        <van-image
-                                v-if="item.still_path!=null"
-                                style="width:160px;height:90px;border-radius: 20px;"
-                                lazy-load
-                                :src="imageBaseUrl+item.still_path"
-                        ></van-image>
-                        <van-image
-                                v-else-if="item.season_poster!=null"
-                                style="width:106px;border-radius: 20px;"
-                                lazy-load
-                                :src="imageBaseUrl+item.season_poster"
-                        ></van-image>
-                        <van-image
-                                v-else
-                                style="width:106px;border-radius: 20px;"
-                                lazy-load
-                                :src="imageBaseUrl+item.tv_poster"
-                        ></van-image>
-                    </template>
-                    <template #desc>
-                        {{dateFormat(item.air_date)+' '+getWeek(item.air_date)}}
-                    </template>
-                    <template #tags>
-                        <p style="color: #909399;font-size: 10px;text-align:left;text-indent:20px;" class="text-ellipsis">{{item.overview}}</p>
-                    </template>
-                    <!--                <template #footer >-->
-                    <!--                    <van-rate color="#ffd21e" v-model="item.vote_average" count="5"   allow-half />-->
-                    <!--                </template>-->
-                </van-card>
-            </template>
-            <van-back-top />
-        </template>
 
-    </van-config-provider>
-    <van-number-keyboard safe-area-inset-bottom></van-number-keyboard>
+    <div class="container-fluid" style="padding-left: 7px;padding-right: 7px">
+        <div v-if="status">
+            <div style="display: flex;align-items: center;" v-for="(season,index) in seasons">
+                <div style="width: 160px;">
+                    <img style="width:160px;border-radius: 10px; overflow: hidden; margin-top: 20px;margin-right: 10px;margin-bottom: 10px;"
+                         :src="season.season_poster?imageBaseUrl+season.season_poster:imageBaseUrl+season.tv_poster"
+                         :key="index">
+                </div>
+                <div style="width: 100%;align-items: center;margin-left:5px">
+                    <h5 style="font-size: 24px; opacity: 0.85; font-weight: bold; margin-top: 0px; margin-bottom: 0px;">
+                        {{ season.tv_name }}</h5>
+                    <p style="opacity: 0.65; font-size: 17px; padding-top: 4px; margin: 0; text-align:left;font-weight: bold">
+                        {{'第 ' + season.season_number + ' 季 · 共 ' + season.episodes + ' 集'}}</p>
+                    <p style="opacity: 0.65; font-size: 12px; padding-top: 4px; margin: 0; text-align:left;font-weight: bold">
+                        {{season.air_date + ' ~ ' + season.latest_air_date + ' 更新'}}</p>
+                    <p v-if="mediaServerEnable" style="opacity: 0.65; font-size: 12px; padding-top: 4px; margin: 0; text-align:left;" class="text-ellipsis--4">
+                        媒体库已有剧集({{season.episode_arr.length}}/{{season.episodes}})<br>[{{season.episode_arr.join(', ')}}]
+                    </p>
+                </div>
+            </div>
+            <div style="height: 1px; opacity: 0.5; margin: 0px 0px 12px 0px;background: white"></div>
+            <div v-for="(item,index) in date_dict" :key="index" style="display: flex;margin-bottom:20px;">
+                <div style="height: 90px;width:160px">
+                    <img style="width: 160px;height:90px;border-radius: 10px;"
+                         lazy-load
+                         :src="item.still_path!=null?imageBaseUrl+item.still_path:imageBaseUrl+item.backdrop_path">
+                </div>
+                <div style="width:100%;height: 90px;margin-left:5px;align-items: center;">
+                    <h5 style="font-size: 14px; opacity: 0.9; font-weight: bold; margin-top: -2px; margin-bottom: 4px;"
+                        class="text-ellipsis--1 ">
+                        {{ item.episode_number + ' - ' + (getTitle(item.name) || ('第' + item.episode_number + '集'))}}</h5>
+                    <span style="opacity: 0.9;">{{dateFormat(item.air_date) + ' ' + getWeek(item.air_date)}}</span>
+                    <p class="text-ellipsis--3 text-justify "
+                       style="opacity: 0.5; font-size: 11px; padding-top: 4px; margin: 0; text-align:left;">
+                        {{item.overview}}</p>
+                </div>
+            </div>
+        </div>
+        <div v-else>
+            <div class="clearfix">
+                <div class="spinner-border float-left text-light" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
 </div>
-<script src="https://fastly.jsdelivr.net/npm/vue@3"></script>
-<script src="https://fastly.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
-<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@3.2.45/dist/vue.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios@1.2.2/dist/axios.min.js"></script>
 <script>
     const app = Vue.createApp({
         data() {
             return {
+                season: {},
+                seasons: [],
                 date_dict: [],
                 imageBaseUrl: 'https://image.tmdb.org/t/p/w500',
-                offset: 7,
                 showId: '',
                 seasonNumber: '',
-                status: true
+                status: false,
+                mediaServerEnable: false,
+                // host: 'https://mr.05730116.xyz:88'
+                host: ''
             }
         },
         methods: {
+            get(url, data) {
+                return new Promise((resolve, reject) => {
+                    axios.get(url, {
+                        params: data,
+                        headers: {'authorization': 'Bearer ' + this.getAccessToken()}
+                    }).then(res => {
+                        resolve(res.data);
+                    }).catch(err => {
+                        reject(err)
+                    })
+                })
+            },
             getTitle(name) {
-                if (name.substring(0,1)==='第'){
+                if (name.substring(0, 1) === '第') {
                     return ''
-                }else {
+                } else {
                     return name
                 }
 
             },
             getDate(strDate) {
-                if(strDate){
-                    return new Date((strDate).replace(/-/g,"/"))
-                }else{
+                if (strDate) {
+                    return new Date((strDate).replace(/-/g, "/"))
+                } else {
                     return '';
                 }
-                
+
             },
             dateFormat(dateStr) {
                 date = this.getDate(dateStr) //转换成Data();
-                if(date){
+                if (date) {
                     var y = date.getFullYear();
                     var m = date.getMonth() + 1;
                     m = m < 10 ? '0' + m : m;
                     var d = date.getDate();
                     d = d < 10 ? ('0' + d) : d;
-                    return y + '年' + m + '月' + d + '日';
+                    return m + '月' + d + '日';
                 }
                 return ''
-                
+
             },
             getWeek(date) {
-                const weekArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
+                const weekArr = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
                 return weekArr[new Date(date).getDay()]
             },
-            getEpisodeDetail(tmdb_id, season_number) {
-
-                axios({
-                    method: 'get',
-                    url: '/static/original.json'
-                }).then(res => {
-                    let episodes = res.data
-                    let filterEpisodes = episodes.filter((episode) => {
-                        return episode['show_id'] == tmdb_id && episode['season_number'] == season_number
-                    })
-                    // let groupEpisodes = this.groupBy(filterEpisodes, episode => {
-                    //     return episode['air_date']
-                    // })
-                    this.date_dict = filterEpisodes
-                    if (episodes.length==0){
-                        this.status=false
-                    }else {
-                        this.status=true
-                    }
-                }).catch(e => {
-                    this.status=false
-                });
-            },
-            groupBy(list, fn) {
-                const groups = {};
-                list.forEach(function (o) {
-                    // const group = JSON.stringify(fn(o));
-                    const group = fn(o);
-                    groups[group] = groups[group] || [];
-                    groups[group].push(o);
-                });
-                return groups;
+            async getEpisodeDetail() {
+                let res = await this.get(this.host + '/api/plugins/tv_calendar/one', {
+                    tmdb_id: this.showId,
+                    season_number: this.seasonNumber
+                })
+                let episodes = res.data
+                this.date_dict = episodes
+                this.season.season_poster = this.date_dict[0].season_poster
+                this.season.tv_poster = this.date_dict[0].tv_poster
+                this.season.tv_name = this.date_dict[0].tv_name
+                this.season.season_number = this.date_dict[0].season_number
+                this.season.air_date = this.date_dict[0].air_date
+                this.season.episode_arr = this.date_dict[0].episode_arr
+                this.season.latest_air_date = this.date_dict[this.date_dict.length - 1].air_date
+                this.season.episodes = this.date_dict.length
+                this.seasons.push(this.season)
+                this.status = true
             },
             getQueryString(name) {
                 var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
@@ -172,17 +192,24 @@
                     return unescape(r[2]);
                 }
                 return null;
+            },
+            getAccessToken() {
+                return localStorage.getItem("accessToken")
+                // return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY3MTA2NTcxNiwianRpIjoiM2FkYjlmZjgtOWJiZi00MDMyLWFlMzUtZWRkM2UwZjYxMjBlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjcxMDY1NzE2LCJleHAiOjE3MDI2MDE3MTZ9.PISSjc_uXwQD_j5PJVDfuHxR9O40ic3liijvRQMqnQA'
+            },
+            async getMediaServerEnable() {
+                let res = await this.get(this.host + '/api/plugins/tv_calendar/media_server_enable')
+                this.mediaServerEnable = res.data
             }
         },
-        mounted() {
+        async mounted() {
             this.showId = this.getQueryString('showId')
             this.seasonNumber = this.getQueryString('seasonNumber')
-            this.getEpisodeDetail(this.showId, this.seasonNumber)
+            await this.getMediaServerEnable()
+            await this.getEpisodeDetail()
         }
     })
 
-    app.use(vant);
-    app.use(vant.Lazyload);
     app.mount('#app');
 </script>
 </body>

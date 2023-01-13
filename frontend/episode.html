@@ -195,16 +195,36 @@
             getAccessToken() {
                 return localStorage.getItem("accessToken")
             },
-            async getMediaServerEnable() {
-                let res = await this.get(this.host + '/api/plugins/tv_calendar/media_server_enable')
-                this.mediaServerEnable = res.data
+            async getChoose() {
+                let res = await this.get(this.host + '/api/plugins/tv_calendar/choose')
+                this.mediaServerEnable = res.data.media_server_enable
+            },
+            setTheme() {
+                if (window.mrTheme) {
+                    const fontColor = window.mrTheme.palette.text.primary
+                    console.log(fontColor)
+                    document.body.style.color = fontColor
+                }
+            },
+            onMessage(e) {
+                console.log(e)
+                if (e.data === 'injectTheme') {
+                    this.setTheme()
+                }
             }
         },
         async mounted() {
             this.showId = this.getQueryString('showId')
             this.seasonNumber = this.getQueryString('seasonNumber')
-            await this.getMediaServerEnable()
+            await this.getChoose()
             await this.getEpisodeDetail()
+            this.setTheme()
+            // 添加事件监听
+            window.addEventListener('message', this.onMessage );
+        },
+        // 卸载事件监听
+        beforeUnmount() {
+            window.removeEventListener('message', this.onMessage );
         }
     })
 

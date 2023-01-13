@@ -33,25 +33,38 @@ param = {'language': 'zh-CN'}
 _LOGGER = logging.getLogger(__name__)
 message_to_uid: typing.List[int] = []
 media_server_enable = False
+banner_enable = False
+offset = 7
+title = '今日剧集已更新 共{tv_total}部'
+content = '{tv_name} 第{season}季 第{episodes}集'
 
 
 @plugin.after_setup
 def after_setup(plugin_meta: PluginMeta, config: Dict[str, Any]):
     global message_to_uid
     global media_server_enable
-    message_to_uid = config.get('uid')
-    media_server_enable = config.get('media_server_enable')
-
+    global banner_enable
+    global offset
+    global title
+    global content
+    message_to_uid = config.get('uid') if config.get('uid') else message_to_uid
+    media_server_enable = config.get('media_server_enable') if config.get(
+        'media_server_enable') else media_server_enable
+    banner_enable = config.get('banner_enable') if config.get('banner_enable') else banner_enable
+    offset = int(config.get('offset')) if config.get('offset') else offset
+    title = config.get('title') if config.get('title') else title
+    content = config.get('content') if config.get('content') else content
     shutil.copy('/data/plugins/tv_calendar/frontend/tv_calendar.html', '/app/frontend/static')
     shutil.copy('/data/plugins/tv_calendar/frontend/episode.html', '/app/frontend/static')
-    shutil.copy('/data/plugins/tv_calendar/frontend/banner.jpg', '/app/frontend/static')
+    shutil.copy('/data/plugins/tv_calendar/frontend/title.png', '/app/frontend/static')
+    shutil.copy('/data/plugins/tv_calendar/frontend/bg.png', '/app/frontend/static')
     """授权并添加菜单"""
-    href = '/common/view#/static/tv_calendar.html'
+    href = '/common/view?hidePadding=true#/static/tv_calendar.html'
     # 授权管理员和普通用户可访问
     server.auth.add_permission([1, 2], href)
     server.auth.add_permission([1, 2], '/api/plugins/tv_calendar/list')
     server.auth.add_permission([1, 2], '/api/plugins/tv_calendar/one')
-    server.auth.add_permission([1, 2], '/api/plugins/tv_calendar/media_server_enable')
+    server.auth.add_permission([1, 2], '/api/plugins/tv_calendar/choose')
     # 获取菜单，把追剧日历添加到"我的"菜单分组
     menus = server.common.list_menus()
     for item in menus:
@@ -73,8 +86,17 @@ def after_setup(plugin_meta: PluginMeta, config: Dict[str, Any]):
 def config_changed(config: Dict[str, Any]):
     global message_to_uid
     global media_server_enable
-    message_to_uid = config.get('uid')
-    media_server_enable = config.get('media_server_enable')
+    global banner_enable
+    global offset
+    global title
+    global content
+    message_to_uid = config.get('uid') if config.get('uid') else message_to_uid
+    media_server_enable = config.get('media_server_enable') if config.get(
+        'media_server_enable') else media_server_enable
+    banner_enable = config.get('banner_enable') if config.get('banner_enable') else banner_enable
+    offset = int(config.get('offset')) if config.get('offset') else offset
+    title = config.get('title') if config.get('title') else title
+    content = config.get('content') if config.get('content') else content
 
 
 @plugin.on_event(
@@ -122,7 +144,7 @@ def task():
 def get_subscribe_tv_list():
     json_list = get_calendar_cache()
     index_date = get_after_day(datetime.date.today(), 0)
-    end_date = get_after_day(index_date, 6)
+    end_date = get_after_day(index_date, offset - 1)
     index_date_timestamp = int(index_date.strftime('%Y%m%d'))
     end_date_timestamp = int(end_date.strftime('%Y%m%d'))
     filter_list = list(
@@ -168,10 +190,14 @@ def get_tv_air_date():
     return api_result(code=0, message='ok', data=filter_list)
 
 
-@bp.route('/media_server_enable', methods=["GET"])
+@bp.route('/choose', methods=["GET"])
 @login_required()
 def get_media_server_enable():
-    return api_result(code=0, message='ok', data=media_server_enable)
+    choose = {
+        'media_server_enable': media_server_enable,
+        'banner_enable': banner_enable
+    }
+    return api_result(code=0, message='ok', data=choose)
 
 
 def get_date_timestamp(air_date):
@@ -267,37 +293,44 @@ def push_message():
         else:
             name_dict[item['tv_name']].append(item)
     img_api = 'https://p.xmoviebot.com/plugins/tv_calendar_logo.jpg'
-    count = 0
-    if len(episode_arr) == 0:
-        message = "今日没有剧集更新"
-    else:
-        message_arr = []
-        for tv_name in name_dict:
-            count = count + 1
-            episodes = name_dict[tv_name]
-            episode_number_arr = []
-            for episode in episodes:
-                episode_number_arr.append(str(episode['episode_number']))
-            episode_numbers = ','.join(episode_number_arr)
-            message_arr.append(
-                tv_name + ' 季' + str(episodes[0]['season_number']) + '·集' + episode_numbers)
-        message = "\n".join(message_arr)
+    tv_total = 0
+
+    message_arr = []
+    for tv_name in name_dict:
+        tv_total = tv_total + 1
+        episodes = name_dict[tv_name]
+        episode_number_arr = []
+        for episode in episodes:
+            episode_number_arr.append(str(episode['episode_number']))
+        episode_numbers = ','.join(episode_number_arr)
+        qry = {
+            'tv_name': tv_name,
+            'season': str(episodes[0]['season_number']),
+            'episodes': episode_numbers
+        }
+        message_arr.append(content.format(**qry))
+    message = "\n".join(message_arr)
+
     server_url = mbot_api.config.web.server_url
     if server_url:
-        link_url = f"{server_url.rstrip('/')}/static/tv_calendar.html"
+        link_url = f"{server_url.rstrip('/')}/common/view?hidePadding=true#/static/tv_calendar.html"
     else:
         link_url = None
+    title_qry = {
+        'tv_total': tv_total
+    }
+    title_fmt = title.format(**title_qry)
     if message_to_uid:
         for _ in message_to_uid:
             server.notify.send_message_by_tmpl('{{title}}', '{{a}}', {
-                'title': '今日剧集更新 共' + str(count) + '部',
+                'title': title_fmt,
                 'a': message,
                 'link_url': link_url,
                 'pic_url': img_api
             }, to_uid=_)
     else:
         server.notify.send_message_by_tmpl('{{title}}', '{{a}}', {
-            'title': '今日剧集更新 共' + str(count) + '部',
+            'title': title_fmt,
             'a': message,
             'link_url': link_url,
             'pic_url': img_api

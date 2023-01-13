@@ -58,12 +58,23 @@
             padding-bottom: 15px;
             font-weight: bold; /* 设置字体为粗体 */
         }
+        .banner{
+            background: url('/static/bg.png')  center;
+            width: 100%;
+            height: 138px;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+        }
 
 
     </style>
 </head>
 <body>
 <div id="app" v-cloak>
+    <div class="banner" v-if="status&&bannerEnable">
+         <img style="width:200px" src="/static/title.png">
+    </div>
     <div class="container-fluid" style="background: inherit;">
         <div v-if="status">
             <template v-for="(val,key,i) in date_dict" :key="i">
@@ -120,6 +131,7 @@
                 offset: 6,
                 status: false,
                 mediaServerEnable: false,
+                bannerEnable: false,
                 host: ''
             }
         },
@@ -213,16 +225,36 @@
             getAccessToken() {
                 return localStorage.getItem("accessToken")
             },
-            async getMediaServerEnable() {
-                let res = await this.get(this.host + '/api/plugins/tv_calendar/media_server_enable')
-                this.mediaServerEnable = res.data
+            async getChoose() {
+                let res = await this.get(this.host + '/api/plugins/tv_calendar/choose')
+                this.mediaServerEnable = res.data.media_server_enable
+                this.bannerEnable = res.data.banner_enable
+            },
+            setTheme() {
+                if (window.mrTheme) {
+                    const fontColor = window.mrTheme.palette.text.primary
+                    console.log(fontColor)
+                    document.body.style.color = fontColor
+                }
+            },
+            onMessage(e) {
+                console.log(e)
+                if(e.data === 'injectTheme'){
+                    this.setTheme()
+                }
             }
-
-
         },
         async mounted() {
-            await this.getMediaServerEnable()
+            console.log('mounted')
+            await this.getChoose()
             await this.getEpisodes()
+            this.setTheme()
+            // 添加事件监听
+            window.addEventListener('message', this.onMessage );
+        },
+        // 卸载事件监听
+        beforeUnmount() {
+            window.removeEventListener('message', this.onMessage );
         }
     });
     app.mount('#app');

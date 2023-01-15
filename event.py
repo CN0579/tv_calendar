@@ -48,15 +48,13 @@ def after_setup(plugin_meta: PluginMeta, config: Dict[str, Any]):
     global title
     global content
     message_to_uid = config.get('uid') if config.get('uid') else message_to_uid
-    media_server_enable = config.get('media_server_enable') if config.get(
-        'media_server_enable') else media_server_enable
-    banner_enable = config.get('banner_enable') if config.get('banner_enable') else banner_enable
+    media_server_enable = config.get('media_server_enable')
+    banner_enable = config.get('banner_enable')
     offset = int(config.get('offset')) if config.get('offset') else offset
     title = config.get('title') if config.get('title') else title
     content = config.get('content') if config.get('content') else content
     shutil.copy('/data/plugins/tv_calendar/frontend/tv_calendar.html', '/app/frontend/static')
     shutil.copy('/data/plugins/tv_calendar/frontend/episode.html', '/app/frontend/static')
-    shutil.copy('/data/plugins/tv_calendar/frontend/title.png', '/app/frontend/static')
     shutil.copy('/data/plugins/tv_calendar/frontend/bg.png', '/app/frontend/static')
     """授权并添加菜单"""
     href = '/common/view?hidePadding=true#/static/tv_calendar.html'
@@ -91,21 +89,20 @@ def config_changed(config: Dict[str, Any]):
     global title
     global content
     message_to_uid = config.get('uid') if config.get('uid') else message_to_uid
-    media_server_enable = config.get('media_server_enable') if config.get(
-        'media_server_enable') else media_server_enable
-    banner_enable = config.get('banner_enable') if config.get('banner_enable') else banner_enable
+    media_server_enable = config.get('media_server_enable')
+    banner_enable = config.get('banner_enable')
     offset = int(config.get('offset')) if config.get('offset') else offset
     title = config.get('title') if config.get('title') else title
     content = config.get('content') if config.get('content') else content
 
 
 @plugin.on_event(
-    bind_event=['SubMedia', ' DeleteSubMedia'], order=1)
+    bind_event=['SubMedia'], order=1)
 def on_subscribe_new_media(ctx: PluginContext, event_type: str, data: Dict):
-    tmdb_id = data['tmdb_id']
-    season_index = data['season_index']
     media_type = data['type']
     if media_type == 'TV':
+        tmdb_id = data['tmdb_id']
+        season_index = data['season_index']
         _LOGGER.info('订阅了新的剧集,开始更新日历数据')
         if tmdb_id and season_index:
             tv = get_tv_info(tmdb_id)
@@ -161,10 +158,13 @@ def get_subscribe_tv_list():
             item['episode_total'] = len(season)
             key = 'key_' + str(tmdb_id) + '_' + str(season_number)
             if key not in episode_list:
-                episode_arr = get_episode_from_media_server(tmdb_id, season_number)
-                item['episode_arr'] = episode_arr
-                _LOGGER.info(episode_arr)
-                episode_list[key] = episode_arr
+                try:
+                    episode_arr = get_episode_from_media_server(tmdb_id, season_number)
+                    item['episode_arr'] = episode_arr
+                    episode_list[key] = episode_arr
+                except Exception as e:
+                    item['episode_arr'] = []
+                    episode_list[key] = []
             else:
                 item['episode_arr'] = episode_list[key]
         else:
@@ -183,8 +183,11 @@ def get_tv_air_date():
     filter_list = list(
         filter(lambda x: x['show_id'] == int(tmdb_id) and x['season_number'] == int(season_number), json_list))
     if media_server_enable:
-        episode_arr = get_episode_from_media_server(tmdb_id, season_number)
-        filter_list[0]['episode_arr'] = episode_arr
+        try:
+            episode_arr = get_episode_from_media_server(tmdb_id, season_number)
+            filter_list[0]['episode_arr'] = episode_arr
+        except Exception as e:
+            filter_list[0]['episode_arr'] = []
     else:
         filter_list[0]['episode_arr'] = []
     return api_result(code=0, message='ok', data=filter_list)

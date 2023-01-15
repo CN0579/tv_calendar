@@ -49,22 +49,30 @@
             font-weight: bold; /* 设置字体为粗体 */
         }
 
-        /* 居中对齐 */
-        .text-center {
-            text-align: center;
+        .date {
+            text-align: left;
             font-size: 21px;
             margin: 0px;
+            padding-left: 15px;
             padding-top: 8px;
-            padding-bottom: 15px;
+            padding-bottom: 12px;
             font-weight: bold; /* 设置字体为粗体 */
         }
-        .banner{
-            background: url('/static/bg.png')  center;
+
+        .banner {
             width: 100%;
-            height: 138px;
-            display:flex;
-            justify-content:center;
-            align-items:center;
+            height: 180px;
+            padding: 7px 7px 0px 7px;
+        }
+        .background{
+            background: url('/static/bg.png') center;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 30px;
+            background-size: cover;
         }
 
 
@@ -72,20 +80,23 @@
 </head>
 <body>
 <div id="app" v-cloak>
-    <div class="banner" v-if="status&&bannerEnable">
-         <img style="width:200px" src="/static/title.png">
-    </div>
+
     <div class="container-fluid" style="background: inherit;">
+        <div class="banner" v-if="status&&bannerEnable">
+            <div class="background">
+            </div>
+        </div>
         <div v-if="status">
             <template v-for="(val,key,i) in date_dict" :key="i">
-                <!--<h3  style="margin-bottom:8px;text-align:center;font-weight: bold">{{dateFormat(key)+' '+getWeek(key)}}</h3>-->
-                <div class="text-center">
+                <div class="date">
                     <span style="opacity: 0.8;">{{dateFormat(key)}}</span>
                     <span style="opacity: 0.8; padding-left: 10px">{{getWeek(key)}}</span>
-                    <span v-if="i===0" style="opacity: 0.8; padding-left: 3px">·</span>
-                    <span v-if="i===0" style="opacity: 0.8; padding-left: 3px">今天</span>
+                    <span v-if="key == formatDate(new Date())" style="opacity: 0.8; padding-left: 3px">·</span>
+                    <span v-if="key == formatDate(new Date())" style="opacity: 0.8; padding-left: 3px">今天</span>
                 </div>
-                <div class="row justify-content-left">
+                <div class="divider"
+                     style="height: 1px; opacity: 0.12; margin: 0px 7px 12px 7px;background: white"></div>
+                <div class="row justify-content-left" style="margin:0px">
                     <div class="col col-4 col-sm-3 col-md-2 col-lg-2 col-xl-1" v-for="(list,key2,j) in val" :key="j"
                          style="text-align: center;padding-bottom: 5px"
                          @click="toDetail(list[0].show_id,list[0].season_number)">
@@ -111,10 +122,8 @@
             </template>
         </div>
         <div v-else>
-            <div class="clearfix">
-                <div class="spinner-border float-left text-light" role="status">
-                    <span class="sr-only">Loading...</span>
-                </div>
+            <div class="d-flex align-items-center">
+                <div class="spinner-border ml-auto text-warning" role="status" aria-hidden="true" style="width: 3rem; height: 3rem;"></div>
             </div>
         </div>
     </div>
@@ -160,6 +169,14 @@
                 var d = date.getDate();
                 d = d < 10 ? ('0' + d) : d;
                 return m + '月' + d + '日';
+            },
+            formatDate(date) {
+                var y = date.getFullYear();
+                var m = date.getMonth() + 1;
+                m = m < 10 ? '0' + m : m;
+                var d = date.getDate();
+                d = d < 10 ? ('0' + d) : d;
+                return y + '-' + m + '-' + d;
             },
             toDetail(showId, seasonNumber) {
                 location.href = 'episode.html?showId=' + showId + "&seasonNumber=" + seasonNumber
@@ -235,11 +252,16 @@
                     const fontColor = window.mrTheme.palette.text.primary
                     console.log(fontColor)
                     document.body.style.color = fontColor
+                    let dividers = document.getElementsByClassName("divider")
+                    for (let i = 0; i < dividers.length; i++) {
+                        dividers[i].style.backgroundColor = fontColor
+
+                    }
                 }
             },
             onMessage(e) {
                 console.log(e)
-                if(e.data === 'injectTheme'){
+                if (e.data === 'injectTheme') {
                     this.setTheme()
                 }
             }
@@ -249,12 +271,13 @@
             await this.getChoose()
             await this.getEpisodes()
             this.setTheme()
+
             // 添加事件监听
-            window.addEventListener('message', this.onMessage );
+            window.addEventListener('message', this.onMessage);
         },
         // 卸载事件监听
         beforeUnmount() {
-            window.removeEventListener('message', this.onMessage );
+            window.removeEventListener('message', this.onMessage);
         }
     });
     app.mount('#app');

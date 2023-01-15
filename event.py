@@ -7,6 +7,7 @@ from typing import Dict, Any
 from moviebotapi.common import MenuItem
 from moviebotapi.core.models import MediaType
 from moviebotapi.subscribe import SubStatus, Subscribe
+from moviebotapi.site import Site
 
 import shutil
 from mbot.openapi import mbot_api
@@ -18,6 +19,8 @@ from flask import Blueprint, request
 from mbot.common.flaskutils import api_result
 from mbot.core.plugins import plugin
 from mbot.register.controller_register import login_required
+import requests
+import bs4
 
 bp = Blueprint('plugin_tv_calendar', __name__)
 """
@@ -339,3 +342,44 @@ def push_message():
             'pic_url': img_api
         })
     _LOGGER.info('完成推送')
+
+
+def change_banner():
+    site_list = server.site.list()
+    ssd_list = list(
+        filter(lambda x: x.site_id == 'ssd', site_list))
+    if len(ssd_list) > 0:
+        ssd = ssd_list[0]
+        cookies = ssd.cookie
+        dict_cookie = str_cookies_to_dict(cookies)
+        grab_ssd_banner(dict_cookie)
+        return True
+    else:
+        return False
+
+
+def str_cookies_to_dict(cookies):
+    dict_cookie = {}
+    str_cookie_list = cookies.split(';')
+    for cookie in str_cookie_list:
+        if cookie.strip(' '):
+            _LOGGER.error(cookie)
+            cookie_key_value = cookie.split('=')
+            key = cookie_key_value[0]
+            value = cookie_key_value[1]
+            dict_cookie[key] = value
+    return dict_cookie
+
+
+def grab_ssd_banner(cookies):
+    ssd_url = 'https://springsunday.net/index.php'
+    resp = requests.get(url=ssd_url, cookies=cookies)
+    soup = bs4.BeautifulSoup(resp.text, 'html.parser')
+    banner_img_url = soup.select('img.banner-image')[0].get('src')
+    save_web_img(banner_img_url, path='/app/frontend/static/bg.png')
+
+
+def save_web_img(url, path):
+    res = requests.get(url)
+    with open(path, 'wb') as banner_img:
+        banner_img.write(res.content)

@@ -363,7 +363,6 @@ def str_cookies_to_dict(cookies):
     str_cookie_list = cookies.split(';')
     for cookie in str_cookie_list:
         if cookie.strip(' '):
-            _LOGGER.error(cookie)
             cookie_key_value = cookie.split('=')
             key = cookie_key_value[0]
             value = cookie_key_value[1]

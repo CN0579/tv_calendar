@@ -1,4 +1,5 @@
 import datetime
+import os
 import typing
 import random
 import time
@@ -58,7 +59,8 @@ def after_setup(plugin_meta: PluginMeta, config: Dict[str, Any]):
     content = config.get('content') if config.get('content') else content
     shutil.copy('/data/plugins/tv_calendar/frontend/tv_calendar.html', '/app/frontend/static')
     shutil.copy('/data/plugins/tv_calendar/frontend/episode.html', '/app/frontend/static')
-    shutil.copy('/data/plugins/tv_calendar/frontend/bg.png', '/app/frontend/static')
+    if not os.path.exists('/app/frontend/static'):
+        shutil.copy('/data/plugins/tv_calendar/frontend/bg.png', '/app/frontend/static')
     """授权并添加菜单"""
     href = '/common/view?hidePadding=true#/static/tv_calendar.html'
     # 授权管理员和普通用户可访问

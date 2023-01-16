@@ -161,8 +161,12 @@
 
             },
             getWeek(date) {
-                const weekArr = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
-                return weekArr[new Date(date).getDay()]
+                if(date){
+                    const weekArr = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+                    return weekArr[new Date(date).getDay()]
+                }
+                return ''
+
             },
             async getEpisodeDetail() {
                 let res = await this.get(this.host + '/api/plugins/tv_calendar/one', {

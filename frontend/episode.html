@@ -179,9 +179,9 @@
                 this.season.tv_poster = this.date_dict[0].tv_poster
                 this.season.tv_name = this.date_dict[0].tv_name
                 this.season.season_number = this.date_dict[0].season_number
-                this.season.air_date = this.date_dict[0].air_date
+                this.season.air_date = this.date_dict[0].air_date?this.date_dict[0].air_date:''
                 this.season.episode_arr = this.date_dict[0].episode_arr
-                this.season.latest_air_date = this.date_dict[this.date_dict.length - 1].air_date
+                this.season.latest_air_date = this.date_dict[this.date_dict.length - 1].air_date?this.date_dict[this.date_dict.length - 1].air_date:''
                 this.season.episodes = this.date_dict.length
                 this.seasons.push(this.season)
                 this.status = true

@@ -48,7 +48,7 @@
             font-weight: 400;
             line-height: 1.4;
             background: inherit;
-            color: white;
+            color: black;
         }
     </style>
 </head>
@@ -57,13 +57,13 @@
 
     <div class="container-fluid">
         <div v-if="status" style="padding: 0px 7px 0px 7px;">
-            <div style="display: flex;align-items: center;" v-for="(season,index) in seasons">
-                <div style="width: 160px;">
-                    <img style="width:160px;border-radius: 10px; overflow: hidden; margin-top: 20px;margin-right: 10px;margin-bottom: 10px;"
+            <div style="display: flex;align-items: flex-start;margin-top: 7px;" v-for="(season,index) in seasons">
+                <div style="width: 160px;margin-right: 7px">
+                    <img style="width:160px;border-radius: 10px; overflow: hidden;"
                          :src="season.season_poster?imageBaseUrl+season.season_poster:imageBaseUrl+season.tv_poster"
                          :key="index">
                 </div>
-                <div style="width: 100%;align-items: center;margin-left:5px">
+                <div style="width: 100%;">
                     <h5 style="font-size: 24px; opacity: 0.85; font-weight: bold; margin-top: 0px; margin-bottom: 0px;">
                         {{ season.tv_name }}</h5>
                     <p style="opacity: 0.65; font-size: 17px; padding-top: 4px; margin: 0; text-align:left;font-weight: bold">
@@ -75,15 +75,15 @@
                     </p>
                 </div>
             </div>
-            <div id="divider" style="height: 1px; opacity: 0.12; margin: 0px 0px 12px 0px;background: white"></div>
-            <div v-for="(item,index) in date_dict" :key="index" style="display: flex;margin-bottom:20px;">
-                <div style="height: 90px;width:160px">
+            <div id="divider" style="height: 1px; opacity: 0.12; margin: 12px 0px 12px 0px;background: black;"></div>
+            <div v-for="(item,index) in date_dict" :key="index" style="display: flex;margin-bottom:20px;align-items: flex-start">
+                <div style="height: 90px;width:160px;margin-right: 7px">
                     <img style="width: 160px;height:90px;border-radius: 10px;"
                          lazy-load
                          :src="item.still_path!=null?imageBaseUrl+item.still_path:imageBaseUrl+item.backdrop_path">
                 </div>
-                <div style="width:100%;height: 90px;margin-left:5px;align-items: center;">
-                    <h5 style="font-size: 14px; opacity: 0.9; font-weight: bold; margin-top: -2px; margin-bottom: 4px;"
+                <div style="width:100%;">
+                    <h5 style="font-size: 14px; opacity: 0.9; font-weight: bold; margin-bottom: 4px;"
                         class="text-ellipsis--1 ">
                         {{ item.episode_number + ' - ' + (getTitle(item.name) || ('第' + item.episode_number + '集'))}}</h5>
                     <span style="opacity: 0.9;">{{dateFormat(item.air_date) + ' ' + getWeek(item.air_date)}}</span>
@@ -197,6 +197,7 @@
             getAccessToken() {
                 return localStorage.getItem("accessToken")
             },
+
             async getChoose() {
                 let res = await this.get(this.host + '/api/plugins/tv_calendar/choose')
                 this.mediaServerEnable = res.data.media_server_enable

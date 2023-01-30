@@ -141,6 +141,18 @@ def task():
     save_json()
 
 
+@plugin.task('tv_calendar_save_json', '剧集更新', cron_expression='10 0 * * *')
+def task():
+    # 怕并发太高，衣总服务器撑不住
+    time.sleep(random.randint(1, 3600))
+    save_json()
+
+
+@plugin.task('change_banner', '更新banner', cron_expression='0 11 * * *')
+def change_banner_task():
+    change_banner()
+
+
 @bp.route('/list', methods=["GET"])
 @login_required()
 def get_subscribe_tv_list():

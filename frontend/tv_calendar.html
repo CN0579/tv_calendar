@@ -109,6 +109,8 @@
                         <span style="opacity: 0.8; padding-left: 10px">{{getWeek(key)}}</span>
                         <span v-if="key == formatDate(new Date())" style="opacity: 0.8; padding-left: 3px">·</span>
                         <span v-if="key == formatDate(new Date())" style="opacity: 0.8; padding-left: 3px">今天</span>
+                        <span v-if="key == formatDate(new Date(new Date().setDate(new Date().getDate()-1)))" style="opacity: 0.8; padding-left: 3px">·</span>
+                        <span v-if="key == formatDate(new Date(new Date().setDate(new Date().getDate()-1)))" style="opacity: 0.8; padding-left: 3px">昨天</span>
                     </div>
                     <a class='expand' style="position: absolute;right: 5px;color: rgb(64, 122, 214);" :id="'a'+i" @click="expand(i)">展开</a>
                 </div>

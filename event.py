@@ -145,7 +145,7 @@ def task():
 @login_required()
 def get_subscribe_tv_list():
     json_list = get_calendar_cache()
-    index_date = get_after_day(datetime.date.today(), 0)
+    index_date = get_after_day(datetime.date.today(), -1)
     end_date = get_after_day(index_date, offset - 1)
     index_date_timestamp = int(index_date.strftime('%Y%m%d'))
     end_date_timestamp = int(end_date.strftime('%Y%m%d'))

@@ -150,6 +150,7 @@ def task():
 
 @plugin.task('change_banner', '更新banner', cron_expression='0 11 * * *')
 def change_banner_task():
+    time.sleep(random.randint(1, 1800))
     change_banner()
 
 

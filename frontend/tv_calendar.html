@@ -78,6 +78,9 @@
             flex-wrap: nowrap;
             overflow-x: auto;
         }
+        .banner-radius{
+            border-radius: 12px;
+        }
         @media (min-width: 425px){
             .row_overflow {
                 flex-wrap: wrap;
@@ -85,7 +88,9 @@
             .expand {
                 display: none;
             }
-
+            .banner-radius{
+                border-radius: 30px;
+            }
         }
         .row_overflow::-webkit-scrollbar {
             display: none;
@@ -99,7 +104,7 @@
 
     <div class="container-fluid" style="background: inherit;">
         <div class="banner">
-            <img :src="'/static/bg.png?'+new Date().getTime()" style="border-radius: 30px;width: 100%;">
+            <img :src="'/static/bg.png?'+new Date().getTime()" style="width: 100%;" class="banner-radius">
         </div>
         <div v-if="status">
             <template v-for="(val,key,i) in date_dict" :key="i">

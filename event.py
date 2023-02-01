@@ -366,8 +366,8 @@ def change_banner():
     if len(ssd_list) > 0:
         ssd = ssd_list[0]
         cookies = ssd.cookie
-        dict_cookie = str_cookies_to_dict(cookies)
-        grab_ssd_banner(dict_cookie)
+        ua = ssd.user_agent
+        grab_ssd_banner(cookies, ua)
         return True
     else:
         return False
@@ -385,15 +385,22 @@ def str_cookies_to_dict(cookies):
     return dict_cookie
 
 
-def grab_ssd_banner(cookies):
+def grab_ssd_banner(cookies, ua):
+    dict_cookie = str_cookies_to_dict(cookies)
     ssd_url = 'https://springsunday.net/index.php'
-    resp = requests.get(url=ssd_url, cookies=cookies)
+    headers = {'cookie': cookies, 'Referer': "https://springsunday.net"}
+    if ua:
+        headers['User-Agent'] = ua
+    resp = requests.get(url=ssd_url, cookies=dict_cookie, headers=headers)
     soup = bs4.BeautifulSoup(resp.text, 'html.parser')
     banner_img_url = soup.select('img.banner-image')[0].get('src')
-    save_web_img(banner_img_url, path='/app/frontend/static/bg.png')
+    save_web_img(banner_img_url, path='/app/frontend/static/bg.png', ua=ua)
 
 
-def save_web_img(url, path):
-    res = requests.get(url)
+def save_web_img(url, path, ua):
+    headers = {'Referer': "https://springsunday.net"}
+    if ua:
+        headers['User-Agent'] = ua
+    res = requests.get(url, headers=headers)
     with open(path, 'wb') as banner_img:
         banner_img.write(res.content)

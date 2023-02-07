@@ -43,6 +43,39 @@ title = '今日剧集已更新 共{tv_total}部'
 content = '{tv_name} 第{season}季 第{episodes}集'
 
 
+def get_latest_jpg(dir):
+    filename_list = os.listdir(dir)
+    latest_time = 0
+    hit_path = ''
+    path_list = [os.path.join(dir, filename) for filename in filename_list]
+    for path in path_list:
+        file_info = os.stat(path)
+        ctime = file_info.st_ctime
+        if ctime > latest_time:
+            latest_time = ctime
+            hit_path = path
+    return hit_path
+
+
+def link(src, dst):
+    if os.path.exists(dst):
+        os.remove(dst)
+    try:
+        os.link(src, dst)
+    except Exception as e:
+        os.symlink(src, dst)
+
+
+def link_resource():
+    tv_calendar_path = '/app/frontend/static/tv_calendar.html'
+    episode_path = '/app/frontend/static/episode.html'
+    bg_path = '/app/frontend/static/bg.png'
+    link('/data/plugins/tv_calendar/frontend/tv_calendar.html', tv_calendar_path)
+    link('/data/plugins/tv_calendar/frontend/episode.html', episode_path)
+    banner_path = get_latest_jpg('/data/plugins/tv_calendar/cmct-images')
+    link(banner_path, bg_path)
+
+
 @plugin.after_setup
 def after_setup(plugin_meta: PluginMeta, config: Dict[str, Any]):
     global message_to_uid
@@ -57,10 +90,7 @@ def after_setup(plugin_meta: PluginMeta, config: Dict[str, Any]):
     offset = int(config.get('offset')) if config.get('offset') else offset
     title = config.get('title') if config.get('title') else title
     content = config.get('content') if config.get('content') else content
-    shutil.copy('/data/plugins/tv_calendar/frontend/tv_calendar.html', '/app/frontend/static')
-    shutil.copy('/data/plugins/tv_calendar/frontend/episode.html', '/app/frontend/static')
-    if not os.path.exists('/app/frontend/static/bg.png'):
-        shutil.copy('/data/plugins/tv_calendar/frontend/bg.png', '/app/frontend/static')
+    link_resource()
     """授权并添加菜单"""
     href = '/common/view?hidePadding=true#/static/tv_calendar.html'
     # 授权管理员和普通用户可访问
@@ -394,7 +424,15 @@ def grab_ssd_banner(cookies, ua):
     resp = requests.get(url=ssd_url, cookies=dict_cookie, headers=headers)
     soup = bs4.BeautifulSoup(resp.text, 'html.parser')
     banner_img_url = soup.select('img.banner-image')[0].get('src')
-    save_web_img(banner_img_url, path='/app/frontend/static/bg.png', ua=ua)
+    img_split_list = banner_img_url.split('/')
+    img_name = img_split_list[len(img_split_list) - 1]
+    path = f'/data/plugins/tv_calendar/cmct-images/{img_name}'
+    if os.path.exists(path):
+        _LOGGER.info("已存在该banner,跳过图片下载")
+        return
+    save_web_img(banner_img_url, path=path, ua=ua)
+    des_path = '/app/frontend/static/bg.png'
+    link(path, des_path)
 
 
 def save_web_img(url, path, ua):
@@ -402,5 +440,8 @@ def save_web_img(url, path, ua):
     if ua:
         headers['User-Agent'] = ua
     res = requests.get(url, headers=headers)
+    cmct_folder = '/data/plugins/tv_calendar/cmct-images'
+    if not os.path.exists(cmct_folder):
+        os.makedirs(cmct_folder)
     with open(path, 'wb') as banner_img:
         banner_img.write(res.content)
